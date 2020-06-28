@@ -3,7 +3,9 @@
  *
  * Copyright (C) 2020 Kent Forschmiedt
  */
- 
+
+use <beamlib.scad>
+
 /* [Beam] */
 BeamWidth = 10;
 BeamHeight = 10;
@@ -27,6 +29,9 @@ AxleYAdj = -18;
 AxleRadius = 3;
 AxleSize = 150;         // try 80
 
+/* [Pad] */
+PadThickness = 1.5;
+
 /* [Selection] */
 DrawBeam = true;
 DrawUBeam = false;
@@ -44,121 +49,12 @@ DrawBushing=false;
 DrawSquirrel = false;
 DrawEmblem = false;
 DrawArch = false;
+DrawPad = false;
 
 /* [Options] */
 
 $fa = 1.1;
 $fs = 1.2;
-
-/*
- * grommet - Put a screw grommet in something.
- *
- * h - height
- * r - radius
- * thickness - grommet wall
- *
- * This will punch a hole through any number of objects
- */
-module grommet(h, r, thickness, offset=[0,0,0])
-{
-    if ($children == 0) {
-        translate(offset)
-        difference() {
-            cylinder(h=h, r=r+thickness, center=true);
-            cylinder(h=h+1, r=r, center=true);
-        }
-    } else {
-        difference() {
-            union() {
-                translate(offset)
-                    cylinder(h=h, r=r+thickness, center=true);
-                children();
-            }
-            translate(offset)
-                cylinder(h=h+1, r=r, center=true);
-        }
-    }
-}
-
-/*
- * iBeam - simple I-beam
- *
- * size - width, height, length
- * thickness - rail thickness
- * rot - degrees: optionally rotate beam around length axis
- *
- * Z and Y are swapped, so length is in the Y axis
- *
- * For larger beams, it would be nice to round the
- * ends of the rails.
- */
-function iBeamPoints(size, thickness) = [ for (e = [
-            [0,0], [0,size[1]], [thickness,size[1]],
-            [thickness, (size[1]+thickness)/2],
-            [size[0]-thickness,(size[1]+thickness)/2],
-            [size[0]-thickness, size[1]],[size[0], size[1]],
-            [size[0],0], [size[0]-thickness,0],
-            [size[0]-thickness, (size[1]-thickness)/2],
-            [thickness, (size[1]-thickness)/2],
-            [thickness,0],[0,0] ]) e - [size[0]/2, size[1]/2] ];
-
-module iBeam(size, thickness, rot=0)
-{
-    width = size[0];
-    height = size[1];
-    length = size[2];
-    rotate([90,rot,0])
-    translate([0,0,-length/2])
-    linear_extrude(length)
-        polygon(iBeamPoints(size, thickness));
-}
-
-/*
- * uBeam - Curved I-beam
- *
- * size - width, height, length
- * thickness - rail thickness
- * angle - degrees of arc to extrude
- * rot - degrees: optionally rotate beam around length axis
- *
- * Z and Y are swapped, so length is in the Y axis
- *
- * For larger beams, it would be nice to round the
- * ends of the rails.
- */
-module uBeam(size, thickness, angle=180, rot=0)
-{
-    rotate_extrude(angle=angle)
-        translate([size[2], 0, 0])
-        rotate([0,0,rot])
-        polygon(iBeamPoints(size, thickness));
-}
-
-/*
- * sqBeam - a hollow box beam
- *
- * size - w, h, l
- * thickness - wall of box
- * plug - bool, leaves 1/3 solid
- *
- * Z and Y are swapped, so length is in the Y axis
- *
- * A rounded corner version would be good
- */
-module sqBeam(size, thickness, plug=false)
-{
-    width = size[0];
-    height = size[1];
-    length = size[2];
-    relief = Relief;
-    
-    translate([0, length/2, 0])
-    difference() {
-        cube([width+2*thickness, length, height+2*thickness], center=true);    
-        translate([0,plug? length-JointInsertDepth : 0, 0])
-        cube([width+2*relief, length+1, height+2*relief], center=true);
-    }
-}
 
 /*
  * beamAnchor - anchor bracket plate for beams
@@ -190,111 +86,6 @@ module beamAnchor(size, angle, thickness)
         cube([abs(w1) + 2.5*BracketMargin, abs(l1) + BracketMargin/2, 2*thickness], center=true);
 }
 
-/*
- * _beamJunc
- */
-module _beamJunc(size, angles, thickness, lengths=[])
-{
-    width = size[0];
-    height = size[1];
-    length = size[2];
-
-    union() {
-        sqBeam([width, height, length], thickness, plug=true);
-        for (a = angles) {
-            rotate([0, 0, a])
-            translate([0,-.001, 0])
-                sqBeam([width, height, length], thickness, plug=true);
-        }
-    }
-}
-
-
-module _headPlate(size, angle, thickness, joint=false)
-{
-    width = size[0];
-    height = size[1];
-    length = size[2];
-    wsize = width+thickness;
-    
-    hull() {
-        rotate([0, 0, -angle/2])
-        translate([-wsize/2, 0, 0])
-          cube([wsize, length, thickness], center=false);
-        rotate([0, 0, angle/2])
-        translate([-wsize/2, 0, 0])
-          cube([wsize, length, thickness], center=false);
-        if (joint) {
-            rotate([0, 0, 180-angle/2])
-            translate([-wsize/2,.1,0])
-                cube([wsize, length, thickness], center=false);
-        }
-    }
-}
-
-module _juncPlate(size, angles, thickness)
-{
-    width = size[0];
-    height = size[1];
-    length = size[2];
-    wsize = width+thickness;
-    
-    hull() {
-        translate([-wsize/2, 0, 0])
-          cube([wsize, length, thickness], center=false);
-        for (a = angles) {
-            rotate([0, 0, a])
-            translate([-wsize/2, 0, 0])
-                cube([wsize, length, thickness], center=false);
-        }
-    }
-}
-
-/*
- * beamJunction - Join n ends together
- */
-module beamJunction(size, angles, thickness, lengths=[], axleRadius=-1)
-{
-    width = size[0];
-    height = size[1];
-    length = size[2];
-    relief = Relief;
-
-    plateThickness = 2*thickness;
-    
-    zoff = height / 2
-         + relief           // Surface of centered beam
-         + 2* thickness     // plate is 2 * thickness, uncentered
-         + relief;          // put top of plate below bottom of beam
-
-    // axle bushing
-    l1 = length * cos(angles[0]);
-    bushingThickness = 2*thickness;
-    gheight = height + 3*thickness;
-    axleZoff = -thickness + 4*relief;    //
-    axleYoff = (abs(l1) + height/2 + AxleYAdj);
-
-    if (axleRadius > 0) {
-        grommet(h=gheight, r=axleRadius, thickness=bushingThickness,
-                offset=[0, axleYoff, axleZoff])
-        {
-            rotate([0, 0, -angles[0]/2])
-            union() {
-                _beamJunc(size, angles, thickness, lengths=lengths);
-                translate([0, 0, -zoff])
-                    // Does not include extended legs!
-                    _juncPlate(size, angles, plateThickness);
-            }
-        }
-    } else {
-        rotate([0,0,-angles[0]/2])
-        union() {
-            _beamJunc(size, angles, thickness, lengths=lengths);
-            translate([0,0, -zoff])
-                _juncPlate(size, angles, plateThickness);
-        }
-    }
-}
 
 module axle(h, r)
 {
@@ -311,20 +102,6 @@ module axleEnds(r)
             translate([0,0,1.5])
             cylinder(h=4, r=r+2*Relief, center=true);
         }
-}
-
-module beamEye(size, thickness)
-{
-    width = size[0];
-    height = size[1];
-    length = size[2];
-    relief = Relief;
-    rgrom = AxleRadius;
-    gthick = width + 2* thickness;
-
-    grommet(h=gthick, r=rgrom, thickness=gthick/2-rgrom,
-                offset=[0, 0, 0]) 
-    sqBeam([width, height, length], thickness, plug=true);
 }
 
 module squirrel() {    
@@ -424,6 +201,42 @@ module Arch(width, height, r, arc, thickness, rot=0)
     }
 }
 
+module Pad(r, thickness) {
+    couplerHeight = 15;
+    
+    difference() {
+        linear_extrude(height=2*thickness)
+            circle(r);
+
+        translate([0,0,thickness])
+        linear_extrude(height=thickness+1)
+            circle(r-thickness);
+    }
+    
+    translate([0,0,thickness - .001])
+        rotate([90,0,0])
+        sqBeam([BeamWidth, BeamHeight, couplerHeight + .001],
+                thickness, plug=false);
+
+    basex = BeamWidth/2 + thickness;
+    points = [ [basex, thickness],
+               [r-thickness+.001, thickness],
+               [r-thickness+.001, 2*thickness],
+               [basex, thickness + couplerHeight],
+               [basex, thickness] ];
+
+    for (a = [0: 90: 360]) {
+        rotate([90,0,a])
+        translate([0,0,-thickness/2])
+        linear_extrude(thickness)
+            polygon(points);
+    }
+}
+
+if (DrawPad) {
+        Pad(BeamRadius, PadThickness);
+}
+
 if (DrawEmblem)
     Emblem(BeamWidth, BeamHeight, BeamRadius, BeamArc, BeamThickness);
 
@@ -432,7 +245,7 @@ if (DrawArch) {
 }
 
 if (DrawEyes)
-    beamEye([BeamWidth, BeamHeight, 30], BeamThickness);
+    beamEye([BeamWidth, BeamHeight, AxleRadius, 30], BeamThickness);
 
 if (DrawBeam) {
     iBeam([BeamWidth, BeamHeight, Length], BeamThickness, rot=0);
@@ -445,7 +258,8 @@ if (DrawUBeam) {
 if (DrawHead) {
     translate([Length, -Length-10, 0])
     beamJunction([BeamWidth, BeamHeight, Length], angles=[HeadAngle],
-                 thickness=BracketThickness, axleRadius=AxleRadius);
+                 thickness=BracketThickness, axleRadius=AxleRadius,
+                 axleYoffset=AxleYAdj);
 }
 
 if (DrawLJoint) {
