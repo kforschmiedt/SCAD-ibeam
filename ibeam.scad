@@ -50,6 +50,7 @@ DrawSquirrel = false;
 DrawEmblem = false;
 DrawArch = false;
 DrawPad = false;
+DrawPadBase = false;
 
 /* [Options] */
 
@@ -62,16 +63,17 @@ $fs = 1.2;
  * size - [w, h, l]
  * angle - rotation of bracket
  * thickness - bracket wall thickness
+ * relief - socket oversize
+ * margin - bracket extension beyond boundary of socket
+ * dscrew - diameter of screw #6 == 3.5, #8 == 4.2
  *
  * interior size is increased by Relief
  */
-module beamAnchor(size, angle, thickness)
+module beamAnchor(size, angle, thickness, relief=.15, margin=20, dscrew=3.5)
 {
     width = size[0];
     height = size[1];
     length = size[2];
-    relief = Relief;
-    dgrom = ScrewSize;    // #6 == 3.5, #8 == 4.2
     
     rotate([0, 0, -angle])
         sqBeam([width, height, length], thickness, plug=true);
@@ -79,11 +81,11 @@ module beamAnchor(size, angle, thickness)
     w1 = length * sin(angle);
     l1 = length * cos(angle);
     translate([w1/2, l1/2, -height/2-thickness - 2*relief])
-        grommet(h=2*thickness, r=dgrom/2, thickness=thickness,
-                offset=[-(abs(w1) + BracketMargin)/2, 0, 0]) 
-        grommet(h=2*thickness, r=dgrom/2, thickness=thickness,
-                offset=[(abs(w1) + BracketMargin)/2, 0, 0]) 
-        cube([abs(w1) + 2.5*BracketMargin, abs(l1) + BracketMargin/2, 2*thickness], center=true);
+        grommet(h=2*thickness, r=dscrew/2, thickness=thickness,
+                offset=[-(abs(w1) + margin)/2, 0, 0]) 
+        grommet(h=2*thickness, r=dscrew/2, thickness=thickness,
+                offset=[(abs(w1) + margin)/2, 0, 0]) 
+        cube([abs(w1) + 2.5*margin, abs(l1) + margin/2, 2*thickness], center=true);
 }
 
 
@@ -93,14 +95,14 @@ module axle(h, r)
     cylinder(h=h, r=r, center=true);
 }
 
-module axleEnds(r)
+module axleEnds(r, relief=0.15)
 {
     for (yoff = [0, 6*r])
         translate([6*r, yoff, 0])
         difference() {
             cylinder(h=6, r=2*r, center=true);
             translate([0,0,1.5])
-            cylinder(h=4, r=r+2*Relief, center=true);
+            cylinder(h=4, r=r+2*relief, center=true);
         }
 }
 
@@ -112,7 +114,6 @@ module squirrel() {
     yoff = -6;
     
     union() {
-        
         translate([-xsize/2, -ysize/2+yoff, 0])
         resize([xsize, ysize, 0], auto=[true, false, false])
         linear_extrude(height=height)
@@ -193,31 +194,70 @@ module Arch(width, height, r, arc, thickness, rot=0)
         translate([r, -r/2, 0])
             iBeam([width, height, r+.002], thickness);
 
-        translate([-10, rb/2*cosa + 8, 0])
-        sqBeam([3, 3, 15], 2.5, plug=true);
+        // sockets for emblem
+        translate([-10, (rb-17)*cosa, 0])
+        sqBeam([3, 3, 30*cosa], 2.5, plug=true);
 
-        translate([10, rb/2*cosa + 8, 0])
-        sqBeam([3, 3, 15], 2.5, plug=true);
+        translate([10, (rb-17)*cosa, 0])
+        sqBeam([3, 3, 30*cosa], 2.5, plug=true);
     }
 }
 
-module Pad(r, thickness) {
+module Pad(r, thickness, rim=true, screwsize=0, texture=false) {
     couplerHeight = 15;
+
+    texangle = 80;
+    texheight = 2.2;
+    texbase = 2 * texheight * tan(texangle/2);
+    texoff = 0;
+    sqr3 = sqrt(3);
     
+    // triangle for texture
+    texpoints = [ [-texbase/2, -texheight/2],
+                  [texbase/2, -texheight/2],
+                  [0, texheight/2] ];
+    crosshatch = [-35, 35];
+    
+    // grommet is no-op when screwsize == 0
+    grommet(h=thickness, r=screwsize/2, thickness=thickness,
+                offset=[.5*r, .5*r, thickness/2]) 
+    grommet(h=thickness, r=screwsize/2, thickness=thickness,
+                offset=[-.5*r, -.5*r, thickness/2]) 
     difference() {
         linear_extrude(height=2*thickness)
             circle(r);
-
+        
+        // Subtract half of disk, with or without rim
         translate([0,0,thickness])
+        linear_extrude(height=thickness+1)
+            circle(r-(rim?thickness:-.001));
+
+        //subtract texture
+        if (texture)
+            for (x = [-r-8: 2*texbase: r+8], a = crosshatch)
+                translate([x, 0, texoff])
+                rotate([90,0,a])
+                translate([0,0,-1.25*r])
+                linear_extrude(2.5*r)
+                    polygon(texpoints);
+    }
+
+    // put rim on face
+    difference() {
+        linear_extrude(height=thickness)
+            circle(r);
+        translate([0,0,-.5])
         linear_extrude(height=thickness+1)
             circle(r-thickness);
     }
     
+    // socket
     translate([0,0,thickness - .001])
         rotate([90,0,0])
         sqBeam([BeamWidth, BeamHeight, couplerHeight + .001],
                 thickness, plug=false);
 
+    // radial braces
     basex = BeamWidth/2 + thickness;
     points = [ [basex, thickness],
                [r-thickness+.001, thickness],
@@ -234,8 +274,11 @@ module Pad(r, thickness) {
 }
 
 if (DrawPad) {
-        Pad(BeamRadius, PadThickness);
+        Pad(BeamRadius, PadThickness, texture = true);
 }
+
+if (DrawPadBase)
+        Pad(BeamRadius, PadThickness, screwsize=3.5, rim=false);
 
 if (DrawEmblem)
     Emblem(BeamWidth, BeamHeight, BeamRadius, BeamArc, BeamThickness);
@@ -281,12 +324,14 @@ if (DrawJunc) {
 
 if (DrawLAnchor) {
     translate([-Length-30, Length, 0])
-    beamAnchor([BeamWidth, BeamHeight, Length], HeadAngle/2, BracketThickness);
+    beamAnchor([BeamWidth, BeamHeight, Length], HeadAngle/2, BracketThickness,
+                Relief, BracketMargin, ScrewSize);
 }
 
 if (DrawRAnchor) {
     translate([-Length-15, -Length-10, 0])
-    beamAnchor([BeamWidth, BeamHeight, Length], -HeadAngle/2, BracketThickness);
+    beamAnchor([BeamWidth, BeamHeight, Length], -HeadAngle/2, BracketThickness,
+                Relief, BracketMargin, ScrewSize);
 }
 
 if (DrawAxle) {
@@ -295,7 +340,7 @@ if (DrawAxle) {
 }
 
 if (DrawAxleEnds) {
-    axleEnds(AxleRadius - 4 * Relief);
+    axleEnds(AxleRadius - 4 * Relief, relief=Relief);
 }
 
 if (DrawWasher) {
