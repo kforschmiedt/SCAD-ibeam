@@ -22,6 +22,8 @@ module grommet(h, r, thickness, offset=[0,0,0])
             cylinder(h=h, r=r+thickness, center=true);
             cylinder(h=h+1, r=r, center=true);
         }
+    } else if (r == 0) {
+        children();
     } else {
         difference() {
             union() {
