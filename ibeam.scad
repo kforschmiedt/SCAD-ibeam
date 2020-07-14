@@ -46,8 +46,6 @@ DrawAxleEnds = false;
 DrawEyes = false;
 DrawWasher = false;
 DrawBushing=false;
-DrawSquirrel = false;
-DrawEmblem = false;
 DrawArch = false;
 DrawPad = false;
 DrawPadBase = false;
@@ -82,10 +80,11 @@ module beamAnchor(size, angle, thickness, relief=.15, margin=20, dscrew=3.5)
     l1 = length * cos(angle);
     translate([w1/2, l1/2, -height/2-thickness - 2*relief])
         grommet(h=2*thickness, r=dscrew/2, thickness=thickness,
-                offset=[-(abs(w1) + margin)/2, 0, 0]) 
+                offset=[-(abs(w1)/2 + 2*margin/3), 0, 0]) 
         grommet(h=2*thickness, r=dscrew/2, thickness=thickness,
-                offset=[(abs(w1) + margin)/2, 0, 0]) 
-        cube([abs(w1) + 2.5*margin, abs(l1) + margin/2, 2*thickness], center=true);
+                offset=[(abs(w1)/2 + 2*margin/3), 0, 0]) 
+        cube([abs(w1) + 2.5*margin, abs(l1) + margin/2, 2*thickness],
+             center=true);
 }
 
 
@@ -104,103 +103,6 @@ module axleEnds(r, relief=0.15)
             translate([0,0,1.5])
             cylinder(h=4, r=r+2*relief, center=true);
         }
-}
-
-module squirrel() {    
-
-    height = 3;
-    xsize = 72;
-    ysize = 64;
-    yoff = -6;
-    
-    union() {
-        translate([-xsize/2, -ysize/2+yoff, 0])
-        resize([xsize, ysize, 0], auto=[true, false, false])
-        linear_extrude(height=height)
-            import("Squirrel-Silhouette-2.svg");
-    }
-}
-
-module Emblem(width, height, r, arc, thickness, rot=0)
-{
-    translate([0,r+r,0]) {
-        linear_extrude(height=3)
-            circle(r=r - width/2 + .001);
-
-        translate([-10, -r, 1.5])
-            iBeam([3,3,20], 1);
-        translate([10, -r, 1.5])
-            iBeam([3,3,20], 1);
-
-    }
-}
-
-module Arch(width, height, r, arc, thickness, rot=0)
-{
-    variant = 1;
-    
-    if (variant == 0) {
-        // left arc
-        translate([-r/2, 0, 0])
-            rotate([0,0,90])
-            uBeam([width, height, r/2], thickness, angle=90, rot=BeamRotate);
-        // right arc
-        translate([r/2, 0, 0])
-            uBeam([width, height, r/2], thickness, angle=90, rot=BeamRotate);
-        // cross span
-        translate([0, r/2, 0])
-            rotate([0, 0, 90])
-            iBeam([width, height, r+.002], thickness);
-        // left descender
-        translate([-r, -r/2, 0])
-            iBeam([width, height, r+.002], thickness);
-        // right descender
-        translate([r, -r/2, 0])
-            iBeam([width, height, r+.002], thickness);
-    } else if (variant == 1) {
-
-        rfrac = 8;
-
-        a = arc;
-        cosa = cos(a);
-        sina = sin(a);        
-        int_radius = r/rfrac - width/2;
-        rb = r / sina;
-        
-        // left arc
-        translate([-(rfrac-1)*r/rfrac, 0, 0])
-            rotate([0,0,180-a])
-            uBeam([width, height, r/rfrac], thickness, angle=a, rot=BeamRotate);
-        // right arc
-        translate([(rfrac-1)*r/rfrac, 0, 0])
-            uBeam([width, height, r/rfrac], thickness, angle=a, rot=BeamRotate);
-
-        // left riser
-        translate([-r+width/2+int_radius, 0, 0])
-        rotate([0,0,-a])
-        translate([-width/2-int_radius, rb/2 ,0]) 
-            iBeam([width, height, rb + .002], thickness, rot=BeamRotate);
-
-        // right riser
-        translate([r-width/2-int_radius, 0, 0]) 
-        rotate([0,0,a])
-        translate([width/2+int_radius, rb/2 ,0]) 
-            iBeam([width, height, rb + .002], thickness, rot=BeamRotate);        
-
-        // left descender
-        translate([-r, -r/2, 0])
-            iBeam([width, height, r+.002], thickness);
-        // right descender
-        translate([r, -r/2, 0])
-            iBeam([width, height, r+.002], thickness);
-
-        // sockets for emblem
-        translate([-10, (rb-17)*cosa, 0])
-        sqBeam([3, 3, 30*cosa], 2.5, plug=true);
-
-        translate([10, (rb-17)*cosa, 0])
-        sqBeam([3, 3, 30*cosa], 2.5, plug=true);
-    }
 }
 
 module Pad(r, thickness, rim=true, screwsize=0, texture=false) {
@@ -280,13 +182,6 @@ if (DrawPad) {
 if (DrawPadBase)
         Pad(BeamRadius, PadThickness, screwsize=3.5, rim=false);
 
-if (DrawEmblem)
-    Emblem(BeamWidth, BeamHeight, BeamRadius, BeamArc, BeamThickness);
-
-if (DrawArch) {
-    Arch(BeamWidth, BeamHeight, BeamRadius, BeamArc, BeamThickness);    
-}
-
 if (DrawEyes)
     beamEye([BeamWidth, BeamHeight, AxleRadius, 30], BeamThickness);
 
@@ -351,6 +246,3 @@ if (DrawBushing) {
     grommet(h=50, r=AxleRadius, thickness=3*BracketThickness);
 }
 
-if (DrawSquirrel) {
-    squirrel();
-}
