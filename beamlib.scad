@@ -1,5 +1,7 @@
 /*
  * beamlib.scad
+ *
+ * Copyright (C) Kent Forschmiedt 2020, All Rights Reserved
  */
  
  _DefaultRelief = .015;

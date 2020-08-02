@@ -1,7 +1,7 @@
 /*
  * I-Beams
  *
- * Copyright (C) 2020 Kent Forschmiedt
+ * Copyright (C) 2020 Kent Forschmiedt, All Rights Reserved
  */
 
 use <beamlib.scad>

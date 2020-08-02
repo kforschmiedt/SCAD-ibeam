@@ -1,6 +1,8 @@
 /*
  * hoop.scad
  *
+ * Copyright (C) Kent Forschmiedt 2020, All Rights Reserved
+ *
  * Hoops and goalposts
  * flames
  */
