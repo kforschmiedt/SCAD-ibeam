@@ -11,6 +11,7 @@
  * h - height
  * r - radius
  * thickness - grommet wall
+ * offset - location
  *
  * This will punch a hole through any number of objects
  */

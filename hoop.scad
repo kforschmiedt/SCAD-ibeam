@@ -28,12 +28,19 @@ PinLength = 20;
 PinSpacing = 60;
 
 /* [SVG] */
-SVGFile = "C:\\Users\\kentf\\Downloads\\file.svg";
+SVGFile = "data\\Squirrel-Silhouette-2.svg";
+SVGx = 30;
+SVGy = 0;
+SVGz = 1.6;
 SVGScale = 0.099;
 SVGFlip = false;
+SVGGrommetX = 1.1;
+SVGGrommetY = 1.1;
+SVGGrommetR = .6;
 
 /* [Options] */
-$fa = 2;
+$fa = 2.2;
+$fn = 1.2;
 
 /* [Selection] */
 DrawHoop = false;
@@ -41,6 +48,10 @@ DrawArch = false;
 DrawMedallion = false;
 DrawSquirrel = false;
 DrawSVG = false;
+
+module _dummy() {}
+
+SVGSize = [SVGx, SVGy, SVGz];
 
 function AngleFromChord(r, chord) = 2*asin(chord/(2*r));
 
@@ -162,27 +173,18 @@ module Arch(
     }
 }
 
+function _auto(n) = ((n)!=-1);
+function _aval(n) = ((n<0)?0:(n));
 
-module Emblem(file, size, scale, rotate=[0,0,0])
+module Emblem(file, size, rotate=[0,0,0], gradius=0, grx=0, gry=0)
 {
-    xsize = size[0]; // 72;
-    ysize = size[1]; // 64;
-    height = size[2];
+    rsize=[_aval(size[0]),_aval(size[1]),_aval(size[2])];
+    rauto=[_auto(size[0]),_auto(size[1]),_auto(size[2])];
     
-    xscale = scale;
-    yscale = scale;
-    zscale = 1;
-    
-    // these only matter for preview
-    xoff = 0;
-    yoff = -9;
-    
-    union() {
+    grommet(h=rsize[2], r=gradius, offset=[grx, gry, rsize[2]/2]) {
         rotate(rotate)
-        translate([-xsize/2+xoff, -ysize/2+yoff, 0 /* -height/2 */])
-//       resize([xsize, ysize, height], auto=[false, false, false])
-        scale([xscale, yscale, zscale])
-        linear_extrude(height=height)
+        resize(rsize, auto=rauto)
+        linear_extrude(height=1)
             import(file);
     }
 }
@@ -238,9 +240,9 @@ if (DrawMedallion)
            PinSpacing);
 
 if (DrawSquirrel) {
-    Emblem("data/Squirrel-Silhouette-2.svg", [72, 64, 1.6], 0.1);
+    Emblem("data/Squirrel-Silhouette-2.svg", [72, 64, 1.6], grx=SVGGrommetX, gry=SVGGrommetY, gradius=SVGGrommetR);
 }
 
 if (DrawSVG) {
-    Emblem(SVGFile, [72, 64, 1.6], SVGScale, rotate=[0,SVGFlip?180:0,0]);
+    Emblem(SVGFile, SVGSize, rotate=[0,SVGFlip?180:0,0], grx=SVGGrommetX, gry=SVGGrommetY, gradius=SVGGrommetR);
 }
